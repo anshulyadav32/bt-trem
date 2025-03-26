@@ -22,6 +22,10 @@ class CommandHandler {
     '/bio': 'Set your bio (e.g., /bio I love terminals!)',
     '/logout': 'Log out from your account',
     '/users': 'List active users',
+    '/theme': 'Change terminal theme (e.g., /theme dark)',
+    '/sound': 'Toggle terminal sounds on/off',
+    '/calc': 'Simple calculator (e.g., /calc 2+2)',
+    '/fontsize': 'Change font size (e.g., /fontsize 14)',
   };
 
   Future<Message?> handleCommand(String command, String userId) async {
@@ -50,6 +54,14 @@ class CommandHandler {
         return await _logoutCommand(userId);
       case '/users':
         return await _usersCommand(userId);
+      case '/theme':
+        return _themeCommand(userId, args);
+      case '/sound':
+        return _soundCommand(userId, args);
+      case '/calc':
+        return _calcCommand(userId, args);
+      case '/fontsize':
+        return _fontSizeCommand(userId, args);
       default:
         return Message(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -314,6 +326,192 @@ class CommandHandler {
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         senderId: 'system',
         content: 'Failed to fetch users: $e',
+        timestamp: DateTime.now(),
+        isCommand: true,
+      );
+    }
+  }
+
+  Message _themeCommand(String userId, String theme) {
+    final validThemes = {
+      'dark': 'Dark theme',
+      'light': 'Light theme',
+    };
+
+    if (theme.isEmpty) {
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        senderId: 'system',
+        content: 'Available themes: ${validThemes.keys.join(", ")}',
+        timestamp: DateTime.now(),
+        isCommand: true,
+      );
+    }
+
+    if (!validThemes.containsKey(theme.toLowerCase())) {
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        senderId: 'system',
+        content: 'Invalid theme. Available themes: ${validThemes.keys.join(", ")}',
+        timestamp: DateTime.now(),
+        isCommand: true,
+      );
+    }
+
+    // Update user's preferred theme in profile
+    if (_authService.currentUser != null) {
+      _authService.updateUserProfile(
+        _authService.currentUser!.uid,
+        {'terminalTheme': theme.toLowerCase()},
+      );
+    }
+
+    return Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      senderId: 'system',
+      content: 'Theme changed to $theme',
+      timestamp: DateTime.now(),
+      isCommand: true,
+    );
+  }
+
+  Message _soundCommand(String userId, String sound) {
+    final validSounds = {
+      'on': 'Sounds on',
+      'off': 'Sounds off',
+    };
+
+    if (sound.isEmpty) {
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        senderId: 'system',
+        content: 'Available sound options: ${validSounds.keys.join(", ")}',
+        timestamp: DateTime.now(),
+        isCommand: true,
+      );
+    }
+
+    if (!validSounds.containsKey(sound.toLowerCase())) {
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        senderId: 'system',
+        content: 'Invalid sound option. Available sound options: ${validSounds.keys.join(", ")}',
+        timestamp: DateTime.now(),
+        isCommand: true,
+      );
+    }
+
+    // Update user's preferred sound in profile
+    if (_authService.currentUser != null) {
+      _authService.updateUserProfile(
+        _authService.currentUser!.uid,
+        {'terminalSound': sound.toLowerCase()},
+      );
+    }
+
+    return Message(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      senderId: 'system',
+      content: 'Sound changed to $sound',
+      timestamp: DateTime.now(),
+      isCommand: true,
+    );
+  }
+
+  Message _calcCommand(String userId, String calc) {
+    try {
+      final result = _evaluateExpression(calc);
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        senderId: 'system',
+        content: 'Calculation result: $result',
+        timestamp: DateTime.now(),
+        isCommand: true,
+      );
+    } catch (e) {
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        senderId: 'system',
+        content: 'Invalid calculation: $e',
+        timestamp: DateTime.now(),
+        isCommand: true,
+      );
+    }
+  }
+
+  double _evaluateExpression(String expression) {
+    expression = expression.replaceAll(' ', '');
+    
+    try {
+      // Handle addition
+      if (expression.contains('+')) {
+        final parts = expression.split('+');
+        return parts.map((p) => _evaluateExpression(p)).reduce((a, b) => a + b);
+      }
+      
+      // Handle subtraction
+      if (expression.contains('-')) {
+        final parts = expression.split('-');
+        return parts.first.isEmpty 
+            ? -_evaluateExpression(parts.last) 
+            : _evaluateExpression(parts.first) - parts.skip(1).map((p) => _evaluateExpression(p)).reduce((a, b) => a + b);
+      }
+      
+      // Handle multiplication
+      if (expression.contains('*')) {
+        final parts = expression.split('*');
+        return parts.map((p) => _evaluateExpression(p)).reduce((a, b) => a * b);
+      }
+      
+      // Handle division
+      if (expression.contains('/')) {
+        final parts = expression.split('/');
+        return parts.map((p) => _evaluateExpression(p)).reduce((a, b) {
+          if (b == 0) throw Exception('Division by zero');
+          return a / b;
+        });
+      }
+      
+      // Parse the number
+      return double.parse(expression);
+    } catch (e) {
+      throw Exception('Invalid expression format');
+    }
+  }
+
+  Message _fontSizeCommand(String userId, String fontSize) {
+    try {
+      final size = int.parse(fontSize);
+      if (size < 10 || size > 24) {
+        return Message(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          senderId: 'system',
+          content: 'Invalid font size. Please choose a size between 10 and 24.',
+          timestamp: DateTime.now(),
+          isCommand: true,
+        );
+      }
+
+      // Update user's preferred font size in profile
+      if (_authService.currentUser != null) {
+        _authService.updateUserProfile(
+          _authService.currentUser!.uid,
+          {'terminalFontSize': size},
+        );
+      }
+
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        senderId: 'system',
+        content: 'Font size changed to $size',
+        timestamp: DateTime.now(),
+        isCommand: true,
+      );
+    } catch (e) {
+      return Message(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        senderId: 'system',
+        content: 'Invalid font size: $e',
         timestamp: DateTime.now(),
         isCommand: true,
       );

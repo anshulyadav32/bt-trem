@@ -9,11 +9,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:bd_terminal/main.dart';
+import 'package:bd_terminal/services/local_storage_service.dart';
+import 'package:bd_terminal/services/audio_service.dart';
+import 'package:bd_terminal/models/message.dart';
+
+// Mock implementations for testing
+class MockLocalStorageService extends LocalStorageService {
+  @override
+  Future<void> init() async {
+    // No-op for testing
+  }
+  
+  @override
+  Future<void> saveMessage(Message message) async {
+    // No-op for testing
+  }
+  
+  @override
+  List<Message> getMessages() {
+    return <Message>[];
+  }
+}
+
+class MockAudioService extends AudioService {
+  @override
+  void playKeySound() {
+    // No-op for testing
+  }
+  
+  @override
+  void playMessageSound() {
+    // No-op for testing
+  }
+}
 
 void main() {
   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
     // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+    await tester.pumpWidget(
+      DemoTerminalApp(
+        audioService: MockAudioService(),
+      ),
+    );
 
     // Verify that our counter starts at 0.
     expect(find.text('0'), findsOneWidget);

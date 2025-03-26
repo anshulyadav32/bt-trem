@@ -50,12 +50,12 @@ class UserModel {
     DateTime? lastActive,
   }) {
     return UserModel(
-      id: this.id,
+      id: id,
       username: username ?? this.username,
       email: email ?? this.email,
       bio: bio ?? this.bio,
       terminalColor: terminalColor ?? this.terminalColor,
-      createdAt: this.createdAt,
+      createdAt: createdAt,
       lastActive: lastActive ?? this.lastActive,
     );
   }

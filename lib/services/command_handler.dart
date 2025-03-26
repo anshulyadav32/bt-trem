@@ -164,7 +164,7 @@ class CommandHandler {
 - Terminal: Active
 - Connection: Online
 - Auth Status: ${isLoggedIn ? 'Logged In' : 'Not Logged In'}
-- User ID: ${isLoggedIn ? _authService.currentUser!.uid.substring(0, 6) + '...' : 'N/A'}
+- User ID: ${isLoggedIn ? '${_authService.currentUser!.uid.substring(0, 6)}...' : 'N/A'}
 - Memory Usage: Nominal
 - System Time: ${DateTime.now().toLocal()}''',
       timestamp: DateTime.now(),

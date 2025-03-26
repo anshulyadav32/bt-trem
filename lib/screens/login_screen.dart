@@ -5,7 +5,7 @@ import '../bloc/auth_bloc.dart';
 class LoginScreen extends StatefulWidget {
   final VoidCallback onSignUpPressed;
 
-  const LoginScreen({Key? key, required this.onSignUpPressed}) : super(key: key);
+  const LoginScreen({super.key, required this.onSignUpPressed});
 
   @override
   _LoginScreenState createState() => _LoginScreenState();

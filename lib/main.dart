@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 import 'widgets/terminal_typing.dart';
 import 'services/audio_service.dart';
+import 'services/auth_service.dart';
+import 'services/chat_service.dart';
+import 'services/command_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -9,16 +14,35 @@ void main() async {
   // Initialize Hive
   await Hive.initFlutter();
   
+  // Skip Firebase initialization on Windows
+  bool useFirebase = false;
+  if (!kIsWeb) {
+    // Only initialize Firebase on supported platforms
+    if (!(Platform.isWindows || Platform.isLinux)) {
+      useFirebase = true;
+      // Firebase initialization code would go here
+      // await Firebase.initializeApp();
+    }
+  }
+  
   // Initialize audio service for sound effects
   final audioService = AudioService();
   
-  runApp(DemoTerminalApp(audioService: audioService));
+  runApp(DemoTerminalApp(
+    audioService: audioService,
+    useFirebase: useFirebase,
+  ));
 }
 
 class DemoTerminalApp extends StatelessWidget {
   final AudioService audioService;
+  final bool useFirebase;
   
-  const DemoTerminalApp({super.key, required this.audioService});
+  const DemoTerminalApp({
+    super.key, 
+    required this.audioService,
+    this.useFirebase = false,
+  });
   
   @override
   Widget build(BuildContext context) {
@@ -29,8 +53,8 @@ class DemoTerminalApp extends StatelessWidget {
         primaryColor: Colors.black,
         scaffoldBackgroundColor: Colors.black,
         colorScheme: ColorScheme.dark(
-          background: Colors.black,
-          onBackground: Colors.greenAccent,
+          surface: Colors.black,
+          onSurface: Colors.greenAccent,
           primary: Colors.green,
         ),
         fontFamily: 'Courier',
@@ -40,22 +64,27 @@ class DemoTerminalApp extends StatelessWidget {
         primaryColor: Colors.black,
         scaffoldBackgroundColor: Colors.black,
         colorScheme: ColorScheme.dark(
-          background: Colors.black,
-          onBackground: Colors.greenAccent,
+          surface: Colors.black,
+          onSurface: Colors.greenAccent,
           primary: Colors.green,
         ),
         fontFamily: 'Courier',
       ),
       themeMode: ThemeMode.dark,
-      home: DemoTerminalScreen(audioService: audioService),
+      home: DemoTerminalScreen(audioService: audioService, useFirebase: useFirebase),
     );
   }
 }
 
 class DemoTerminalScreen extends StatefulWidget {
   final AudioService audioService;
+  final bool useFirebase;
   
-  const DemoTerminalScreen({super.key, required this.audioService});
+  const DemoTerminalScreen({
+    super.key, 
+    required this.audioService,
+    this.useFirebase = false,
+  });
   
   @override
   State<DemoTerminalScreen> createState() => _DemoTerminalScreenState();
@@ -69,9 +98,20 @@ class _DemoTerminalScreenState extends State<DemoTerminalScreen> {
   double _fontSize = 14.0;
   bool _soundEnabled = true;
   
+  // Services initialization
+  late AuthService _authService;
+  late ChatService _chatService;
+  late CommandHandler _commandHandler;
+  
   @override
   void initState() {
     super.initState();
+    
+    // Initialize services with proper useFirebase flag
+    _authService = AuthService(useFirebase: widget.useFirebase);
+    _chatService = ChatService(useFirebase: widget.useFirebase);
+    _commandHandler = CommandHandler(_chatService, _authService, useFirebase: widget.useFirebase);
+    
     _addSystemMessage("Welcome to BD Terminal Demo");
     _addSystemMessage("Terminal v2.0 with enhanced features:");
     _addSystemMessage("1. Typing animations");

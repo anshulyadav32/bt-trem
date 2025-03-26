@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/message.dart';
-import '../models/user.dart';
 import 'chat_service.dart';
 import 'auth_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
@@ -8,8 +7,10 @@ import 'package:cloud_firestore/cloud_firestore.dart'; // Import Firestore
 class CommandHandler {
   final ChatService _chatService;
   final AuthService _authService;
+  final bool _useFirebase;
 
-  CommandHandler(this._chatService, this._authService);
+  CommandHandler(this._chatService, this._authService, {bool useFirebase = false}) 
+    : _useFirebase = useFirebase;
 
   static const Map<String, String> helpText = {
     '/help': 'Show available commands',
@@ -197,17 +198,18 @@ class CommandHandler {
     }
 
     final profileData = await _authService.getUserProfile(currentUser.uid);
+    
     if (profileData == null) {
       return Message(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         senderId: 'system',
-        content: 'Profile data not found.',
+        content: 'Error: Unable to retrieve user profile data.',
         timestamp: DateTime.now(),
         isCommand: true,
       );
     }
 
-    final user = UserModel.fromJson(profileData, currentUser.uid);
+    final user = profileData;
     return Message(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       senderId: 'system',
@@ -293,9 +295,20 @@ class CommandHandler {
 
   Future<Message> _usersCommand(String userId) async {
     try {
+      // If we're in mock mode, return placeholder message
+      if (!_useFirebase) {
+        return Message(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          senderId: 'system',
+          content: 'Users feature is only available when connected to a database.',
+          timestamp: DateTime.now(),
+          isCommand: true,
+        );
+      }
+      
       final usersSnapshot = await _authService.getAllUsers();
       
-      if (usersSnapshot.docs.isEmpty) {
+      if (usersSnapshot == null || usersSnapshot.docs.isEmpty) {
         return Message(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
           senderId: 'system',

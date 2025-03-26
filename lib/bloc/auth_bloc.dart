@@ -71,13 +71,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = _authService.currentUser;
       if (user != null) {
         final profileData = await _authService.getUserProfile(user.uid);
-        if (profileData != null) {
-          final userProfile = UserModel.fromJson(profileData, user.uid);
-          emit(Authenticated(user, userProfile));
-        } else {
-          emit(Unauthenticated());
-        }
-      } else {
+        final userProfile = UserModel.fromJson(profileData, user.uid);
+        emit(Authenticated(user, userProfile));
+            } else {
         emit(Unauthenticated());
       }
     } catch (e) {
@@ -97,13 +93,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = credential.user;
       if (user != null) {
         final profileData = await _authService.getUserProfile(user.uid);
-        if (profileData != null) {
-          final userProfile = UserModel.fromJson(profileData, user.uid);
-          emit(Authenticated(user, userProfile));
-        } else {
-          emit(AuthError('User profile not found'));
-        }
-      } else {
+        final userProfile = UserModel.fromJson(profileData, user.uid);
+        emit(Authenticated(user, userProfile));
+            } else {
         emit(AuthError('Authentication failed'));
       }
     } catch (e) {
@@ -130,13 +122,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final user = credential.user;
       if (user != null) {
         final profileData = await _authService.getUserProfile(user.uid);
-        if (profileData != null) {
-          final userProfile = UserModel.fromJson(profileData, user.uid);
-          emit(Authenticated(user, userProfile));
-        } else {
-          emit(AuthError('Failed to create user profile'));
-        }
-      } else {
+        final userProfile = UserModel.fromJson(profileData, user.uid);
+        emit(Authenticated(user, userProfile));
+            } else {
         emit(AuthError('Registration failed'));
       }
     } catch (e) {
@@ -165,11 +153,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         );
         
         final updatedProfile = await _authService.getUserProfile(currentState.user.uid);
-        if (updatedProfile != null) {
-          final userProfile = UserModel.fromJson(updatedProfile, currentState.user.uid);
-          emit(Authenticated(currentState.user, userProfile));
-        }
-      }
+        final userProfile = UserModel.fromJson(updatedProfile, currentState.user.uid);
+        emit(Authenticated(currentState.user, userProfile));
+            }
     } catch (e) {
       emit(AuthError('Failed to update profile: $e'));
     }

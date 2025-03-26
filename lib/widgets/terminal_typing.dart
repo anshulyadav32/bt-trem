@@ -8,12 +8,12 @@ class TerminalTypingText extends StatelessWidget {
   final bool animate;
   
   const TerminalTypingText({
-    Key? key, 
+    super.key, 
     required this.text,
     required this.style,
     this.typingSpeed = const Duration(milliseconds: 30),
     this.animate = true,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

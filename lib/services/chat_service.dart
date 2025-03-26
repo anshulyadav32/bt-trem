@@ -1,17 +1,33 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message.dart';
 import 'local_storage_service.dart';
+import 'dart:async';
 
 class ChatService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore? _firestore;
   final LocalStorageService _localStorage;
   final String _collectionName = 'messages';
+  final bool _isMockMode;
+  final StreamController<List<Message>> _mockMessagesController = StreamController<List<Message>>.broadcast();
+  List<Message> _mockMessages = [];
   
-  ChatService({LocalStorageService? localStorage}) 
-      : _localStorage = localStorage ?? LocalStorageService();
+  ChatService({LocalStorageService? localStorage, bool useFirebase = false}) 
+      : _localStorage = localStorage ?? LocalStorageService(),
+        _isMockMode = !useFirebase,
+        _firestore = useFirebase ? FirebaseFirestore.instance : null {
+    if (_isMockMode) {
+      // Initialize with local messages in mock mode
+      _mockMessages = _localStorage.getMessages();
+      _mockMessagesController.add(_mockMessages);
+    }
+  }
   
   Stream<List<Message>> getMessages() {
-    return _firestore
+    if (_isMockMode) {
+      return _mockMessagesController.stream;
+    }
+    
+    return _firestore!
         .collection(_collectionName)
         .orderBy('timestamp', descending: true)
         .snapshots()
@@ -39,8 +55,15 @@ class ChatService {
       // Save locally first for offline mode
       await _localStorage.saveMessage(message);
       
+      if (_isMockMode) {
+        // In mock mode, only save locally and update the stream
+        _mockMessages.insert(0, message); // Add at the beginning for "newest first"
+        _mockMessagesController.add(_mockMessages);
+        return;
+      }
+      
       // Then send to Firestore
-      await _firestore.collection(_collectionName).add(message.toJson());
+      await _firestore!.collection(_collectionName).add(message.toJson());
     } catch (e) {
       print('Error sending message: $e');
       // Message is still saved locally and can be synced later
@@ -50,7 +73,15 @@ class ChatService {
 
   Future<void> deleteMessage(String messageId) async {
     try {
-      await _firestore.collection(_collectionName).doc(messageId).delete();
+      if (_isMockMode) {
+        // In mock mode, only delete locally
+        _mockMessages.removeWhere((message) => message.id == messageId);
+        _mockMessagesController.add(_mockMessages);
+        await _localStorage.deleteMessage(messageId);
+        return;
+      }
+      
+      await _firestore!.collection(_collectionName).doc(messageId).delete();
     } catch (e) {
       print('Error deleting message: $e');
       rethrow;
@@ -59,7 +90,15 @@ class ChatService {
 
   Future<void> clearChat() async {
     try {
-      final messages = await _firestore.collection(_collectionName).get();
+      if (_isMockMode) {
+        // In mock mode, only clear locally
+        _mockMessages.clear();
+        _mockMessagesController.add(_mockMessages);
+        await _localStorage.clearMessages();
+        return;
+      }
+      
+      final messages = await _firestore!.collection(_collectionName).get();
       for (var message in messages.docs) {
         await message.reference.delete();
       }

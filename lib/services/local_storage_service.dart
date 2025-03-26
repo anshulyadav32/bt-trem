@@ -1,4 +1,3 @@
-import 'package:hive/hive.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/message.dart';
 
@@ -51,11 +50,19 @@ class LocalStorageService {
     }
   }
   
+  Future<void> deleteMessage(String messageId) async {
+    try {
+      final box = Hive.box<Message>(messagesBoxName);
+      await box.delete(messageId);
+    } catch (e) {
+      print('Error deleting message from local storage: $e');
+    }
+  }
+  
   List<Message> getMessages() {
     try {
       final box = Hive.box<Message>(messagesBoxName);
-      return box.values.toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      return box.values.toList();
     } catch (e) {
       print('Error getting messages from local storage: $e');
       return [];

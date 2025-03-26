@@ -1,49 +1,69 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+// Mock class for User to avoid Firebase dependency during testing
+class MockUser {
+  final String uid;
+  final String? email;
+  final String? displayName;
+  
+  MockUser({required this.uid, this.email, this.displayName});
+}
 
-  // Mock user for testing UI without Firebase
-  bool _isMockMode = true;
-  User? _mockUser;
+// Mock class for UserCredential to avoid Firebase dependency during testing
+class MockUserCredential {
+  final MockUser? user;
+  
+  MockUserCredential({this.user});
+}
+
+class AuthService {
+  final FirebaseAuth? _auth;
+  final FirebaseFirestore? _firestore;
+  
+  // Use mock mode when Firebase is unavailable (on Windows) or for testing
+  final bool _isMockMode;
+  MockUser? _mockUser;
   UserModel? _mockUserProfile;
 
-  AuthService() {
+  AuthService({bool useFirebase = false}) : 
+    _isMockMode = !useFirebase,
+    _auth = useFirebase ? FirebaseAuth.instance : null,
+    _firestore = useFirebase ? FirebaseFirestore.instance : null {
     if (_isMockMode) {
       // Create mock user for testing
-      _mockUser = User(
+      _mockUser = MockUser(
         uid: 'mock-user-id',
         email: 'test@example.com',
         displayName: 'Test User',
       );
       
+      // Create mock user profile
       _mockUserProfile = UserModel(
         id: 'mock-user-id',
-        username: 'terminal_user',
+        username: 'test_user',
         email: 'test@example.com',
-        bio: 'Terminal enthusiast',
-        terminalColor: 'green',
+        bio: 'This is a mock user for testing',
+        terminalColor: '#32a852',
         terminalTheme: 'dark',
         terminalFontSize: 14.0,
         terminalSound: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 30)),
+        createdAt: DateTime.now(),
         lastActive: DateTime.now(),
       );
     }
   }
 
   // Get current user
-  User? get currentUser => _isMockMode ? _mockUser : _auth.currentUser;
+  User? get currentUser => _isMockMode ? (_mockUser as User?) : _auth?.currentUser;
 
   // Auth state changes stream
   Stream<User?> get authStateChanges {
     if (_isMockMode) {
       // Return a mock stream with our mock user
-      return Stream.value(_mockUser);
+      return Stream.value(_mockUser as User?);
     }
-    return _auth.authStateChanges();
+    return _auth!.authStateChanges();
   }
 
   // Sign in with email and password
@@ -52,10 +72,12 @@ class AuthService {
     if (_isMockMode) {
       // Mock successful sign in
       await Future.delayed(const Duration(milliseconds: 500));
-      return Future.value(null); // Mock credential
+      return Future.value(MockUserCredential(
+        user: _mockUser
+      ) as UserCredential); // Mock credential
     }
     try {
-      return await _auth.signInWithEmailAndPassword(
+      return await _auth!.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -71,11 +93,13 @@ class AuthService {
     if (_isMockMode) {
       // Mock successful sign up
       await Future.delayed(const Duration(milliseconds: 500));
-      return Future.value(null); // Mock credential
+      return Future.value(MockUserCredential(
+        user: _mockUser
+      ) as UserCredential); // Mock credential
     }
     try {
       // Create user authentication
-      final userCredential = await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth!.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -93,13 +117,16 @@ class AuthService {
   // Create user profile in Firestore
   Future<void> _createUserProfile(
       String userId, String username, String email) async {
-    await _firestore.collection('users').doc(userId).set({
+    await _firestore!.collection('users').doc(userId).set({
       'username': username,
       'email': email,
-      'createdAt': FieldValue.serverTimestamp(),
-      'lastActive': FieldValue.serverTimestamp(),
       'bio': 'Terminal user',
       'terminalColor': 'green',
+      'terminalTheme': 'dark',
+      'terminalFontSize': 14.0,
+      'terminalSound': true,
+      'createdAt': FieldValue.serverTimestamp(),
+      'lastActive': FieldValue.serverTimestamp(),
     });
   }
 
@@ -110,27 +137,26 @@ class AuthService {
       await Future.delayed(const Duration(milliseconds: 300));
       return;
     }
-    await _auth.signOut();
+    await _auth!.signOut();
   }
 
   // Get user profile data
-  Future<UserModel> getUserProfile(String userId) async {
+  Future<UserModel?> getUserProfile(String userId) async {
     if (_isMockMode) {
-      // Return mock profile
       await Future.delayed(const Duration(milliseconds: 300));
-      return _mockUserProfile!;
+      return _mockUserProfile;
     }
     
     try {
-      final doc = await _firestore.collection('users').doc(userId).get();
-      if (doc.exists) {
+      final doc = await _firestore?.collection('users').doc(userId).get();
+      if (doc != null && doc.exists) {
         return UserModel.fromJson(doc.data()!, userId);
       } else {
-        // Create a new profile if it doesn't exist
+        // If user profile doesn't exist yet, create a new one
         final newUser = UserModel(
           id: userId,
-          username: currentUser?.displayName ?? 'user',
-          email: currentUser?.email ?? '',
+          username: _auth?.currentUser?.displayName ?? 'user',
+          email: _auth?.currentUser?.email ?? '',
           bio: 'Terminal user',
           terminalColor: 'green',
           terminalTheme: 'dark',
@@ -139,7 +165,7 @@ class AuthService {
           createdAt: DateTime.now(),
           lastActive: DateTime.now(),
         );
-        await _firestore.collection('users').doc(userId).set(newUser.toJson());
+        await _firestore?.collection('users').doc(userId).set(newUser.toJson());
         return newUser;
       }
     } catch (e) {
@@ -188,7 +214,7 @@ class AuthService {
     }
     
     try {
-      await _firestore.collection('users').doc(userId).update({
+      await _firestore?.collection('users').doc(userId).update({
         ...data,
         'lastActive': FieldValue.serverTimestamp(),
       });
@@ -200,39 +226,27 @@ class AuthService {
 
   // Check if username exists
   Future<bool> usernameExists(String username) async {
-    final querySnapshot = await _firestore
-        .collection('users')
-        .where('username', isEqualTo: username)
-        .get();
-    return querySnapshot.docs.isNotEmpty;
+    if (_isMockMode) {
+      return _mockUserProfile?.username == username;
+    }
+    
+    try {
+      final querySnapshot = await _firestore?.collection('users')
+          .where('username', isEqualTo: username)
+          .get();
+      return querySnapshot != null && querySnapshot.docs.isNotEmpty;
+    } catch (e) {
+      print('Error checking username: $e');
+      return false;
+    }
   }
   
   // Get all users
-  Future<QuerySnapshot> getAllUsers() async {
-    return await _firestore.collection('users').get();
-  }
-
-  // Mock class for User to avoid Firebase dependency during testing
-  class User {
-    final String uid;
-    final String? email;
-    final String? displayName;
-    
-    User({required this.uid, this.email, this.displayName});
-  }
-
-  // Mock class for UserCredential to avoid Firebase dependency during testing
-  class UserCredential {
-    final User? user;
-    
-    UserCredential({this.user});
-  }
-
-  // Mock class for FieldValue to avoid Firebase dependency during testing
-  class FieldValue {
-    static FieldValue serverTimestamp() {
-      return FieldValue();
+  Future<QuerySnapshot?> getAllUsers() async {
+    if (_isMockMode) {
+      return null; // Mock implementation doesn't support this
     }
+    return await _firestore?.collection('users').get();
   }
 }
 

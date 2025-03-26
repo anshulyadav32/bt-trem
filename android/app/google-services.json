@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "453713187164",
+    "project_id": "bt-term-417bc",
+    "storage_bucket": "bt-term-417bc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:453713187164:android:fde9ebb65c1dbc066f7199",
+        "android_client_info": {
+          "package_name": "com.example.bd_terminal"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVys-0ABat98cW4mRI3RV3F2PXnX01NUw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
